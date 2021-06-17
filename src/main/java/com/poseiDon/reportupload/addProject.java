@@ -73,7 +73,7 @@ public class addProject extends HttpServlet {
                 String fileName = new String(Base64.decode((String) list.get(2)), Charset.forName("UTF-8"));
 
                 sqlQuery query = new sqlQuery();
-                String newProjectID = String.valueOf(Integer.valueOf(query.getProjectID()) + 1);
+                int newProjectID = query.getProjectID();
                 fileName = fileName.substring(0, fileName.indexOf(".")) + "_" + newProjectID + "." + fileName.substring(fileName.indexOf(".") + 1, fileName.length());
                 String uploadFile = Path + File.separator + fileName;
                 list.add(request.getRequestURL().substring(0, request.getRequestURL().indexOf(request.getServletPath())) + "/report/" + fileName);
@@ -101,6 +101,7 @@ public class addProject extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         resp.setContentType("application/json");
         ArrayList<String> list;
+
         try {
             list = processReceiveData(req);
             String project_course = new String(Base64.decode(list.get(1)), Charset.forName("UTF-8"));

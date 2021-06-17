@@ -20,6 +20,7 @@ import java.util.HashMap;
  */
 @WebServlet(name = "login", value = "/login")
 public class login extends HttpServlet {
+    boolean INITIALIZED = false;
 
     private boolean checkUser(String username, String password, boolean isTeacher) {
         /**
@@ -32,7 +33,11 @@ public class login extends HttpServlet {
             ResultSet resultSet;
             sqlQuery login = new sqlQuery();
             resultSet = login.loginQuery(username, password, isTeacher);
-            boolean checkFlag = resultSet.isBeforeFirst();
+            boolean checkFlag = false;
+            while (resultSet.next()) {
+                checkFlag = true;
+                if (!isTeacher) INITIALIZED = resultSet.getBoolean("student_initialized");
+            }
             resultSet.close();
             login.CloseConn();
             return checkFlag;
@@ -49,6 +54,7 @@ public class login extends HttpServlet {
          * 该接口处理登录事务，当接收到登录请求时验证提交的用户名与密码
          * 通过则予以放行 否则则返回拒绝访问
          */
+        INITIALIZED = false;
         req.setCharacterEncoding("UTF-8");
         resp.setContentType("text/json; charset=utf-8");
         boolean isTeacher;
@@ -88,8 +94,12 @@ public class login extends HttpServlet {
         HashMap<String, String> map = new HashMap<>();
         // 验证用户名与密码的合法性
         if (checkUser(username, password, isTeacher)) {
-            map.put("result", "ACCESSED");
-            map.put("token", tokenGenerate.token(username, password, isTeacher)); // 合法用户 生成 token
+            if (!isTeacher && !INITIALIZED) {
+                map.put("result", "INITIALIZED");
+            } else {
+                map.put("result", "ACCESSED");
+                map.put("token", tokenGenerate.token(username, password, isTeacher)); // 合法用户 生成 token
+            }
         } else {
             map.put("result", "DENIED");
         }

@@ -40,6 +40,7 @@ public class getReportStatus extends HttpServlet {
             JSONObject objJson = new JSONObject();
             // TODO 提交情况JSON proj_submit
             while (resultSet.next()) {
+                dict.put("proj_id", String.valueOf(resultSet.getInt("project_id")));
                 dict.put("proj_name", resultSet.getString("project_name"));
                 dict.put("proj_class", resultSet.getString("project_course"));
                 dict.put("proj_prof", resultSet.getString("project_teacher"));

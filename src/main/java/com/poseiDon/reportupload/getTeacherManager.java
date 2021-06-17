@@ -44,7 +44,7 @@ public class getTeacherManager extends HttpServlet {
                 resultSet = status.project_info(project_id_list[i]);
                 while (resultSet.next()) {
                     // TODO
-                    dict.put("project_id", resultSet.getString("project_id"));
+                    dict.put("project_id", String.valueOf(resultSet.getInt("project_id")));
                     dict.put("project_name", resultSet.getString("project_name"));
                     dict.put("project_deadline", resultSet.getString("project_deadline"));
                     dict.put("project_course", resultSet.getString("project_course"));

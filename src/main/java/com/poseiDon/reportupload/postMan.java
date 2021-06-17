@@ -2,21 +2,54 @@ package com.poseiDon.reportupload;
 
 import javax.mail.internet.*;
 import javax.servlet.ServletContext;
+import java.io.File;
 import java.sql.ResultSet;
 import java.util.*;
 import javax.mail.*;
+import org.zeroturnaround.zip.*;
 
 /**
  * 实现邮件提醒功能
  */
 public class postMan extends TimerTask {
 
-    private static final int C_SCHEDULED_HOUR = 0; // 任务定时计划启动时间
+    private static final int C_SCHEDULED_HOUR = 18; // 任务定时计划启动时间
     private static boolean isRunning = false;
     private ServletContext context;
 
     public postMan(ServletContext context) {
         this.context = context;
+    }
+
+    public void checkDeadline() {
+        try {
+            System.out.println("---CheckDeadLine---");
+            sqlQuery query = new sqlQuery();
+            Date currentDate = new Date();
+            java.sql.Date SQLDate = new java.sql.Date(currentDate.getTime());
+            query.deleteStudentProjectOutOfRange(SQLDate);
+            ResultSet resultSet = query.reachDeadline(SQLDate);
+            while (resultSet.next()) {
+                System.out.println("Project Reach DeadLine");
+                int project_id = resultSet.getInt("project_id");
+                System.out.println("ProjectID:" + project_id);
+                String PATH = context.getRealPath("./") + File.separator + "uploadReport" + File.separator;
+                try {
+                    query.alterTeacherManageProjectID(project_id);
+                    ZipUtil.pack(new File(PATH + project_id), new File(PATH + project_id + ".zip"));
+                    File dir = new File(PATH + File.separator + project_id);
+                    if (dir.isDirectory()) {
+                        dir.delete();
+                    }
+                    query.removeProject(project_id);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void beforeMail() {
@@ -32,7 +65,7 @@ public class postMan extends TimerTask {
         props.setProperty("mail.smtp.host", emailSMTPHost);
         props.setProperty("mail.smtp.auth", "true");
         Session session = Session.getInstance(props);
-        session.setDebug(true);
+        session.setDebug(false);
         System.out.println(session);
         try {
             HashMap<String, Object> dict = almostDeadline();
@@ -105,7 +138,7 @@ public class postMan extends TimerTask {
             recipientSets.close();
             userList.forEach(stu -> {
                 try {
-                    ArrayList<String> temp = new ArrayList<>();
+                    ArrayList<String> temp;
                     temp = query.all_from_student_info(stu);
                     userinfo.add(temp.get(0));
                     userinfo.add(temp.get(1));
@@ -134,6 +167,7 @@ public class postMan extends TimerTask {
             if (C_SCHEDULED_HOUR == c.get(Calendar.HOUR_OF_DAY)) {
                 isRunning = true;
                 context.log("邮件正在投递中");
+                checkDeadline();
                 beforeMail();
                 context.log("邮件投递完成");
             }

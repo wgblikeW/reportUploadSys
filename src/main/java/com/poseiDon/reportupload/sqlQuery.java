@@ -1,6 +1,7 @@
 package com.poseiDon.reportupload;
 
 import javax.persistence.criteria.CriteriaBuilder;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -17,6 +18,16 @@ public class sqlQuery {
     static final String PASSWD = "";
     private Connection conn;
 
+    public void updateStudent(String name, String email, String password, String username) throws Exception {
+        String SQLQuery = "UPDATE student SET student_name=?,student_email=?,student_password=?,student_initialized=1 WHERE student_id=?";
+        PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
+        preparedStatement.setString(1, name);
+        preparedStatement.setString(2, email);
+        preparedStatement.setString(3, password);
+        preparedStatement.setString(4, username);
+        preparedStatement.executeUpdate();
+    }
+
     public boolean getSubmitStatus(String username, String projectName, String projectCourse) throws Exception {
         String SQLQuery = "SELECT * FROM student_project WHERE student_id=? AND EXISTS(SELECT * FROM project WHERE project.project_name=? AND project.project_course=? AND project.project_id=student_project.project_id)";
         PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
@@ -30,13 +41,13 @@ public class sqlQuery {
         return false;
     }
 
-    public void updateTeacherManageID(String teacher_id, String class_id) throws Exception {
+    public void updateTeacherManageID(String teacher_id, int class_id) throws Exception {
         String SQLQuery = "UPDATE teacher SET teacher_manage_id=? WHERE teacher_id=?";
         PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
         preparedStatement.setString(2, teacher_id);
         String teacher_manage_id = getTeacherManageID(teacher_id);
         if (teacher_manage_id.equals("")) {
-            teacher_manage_id = class_id;
+            teacher_manage_id = String.valueOf(class_id);
         } else teacher_manage_id = teacher_manage_id + ";" + class_id;
         preparedStatement.setString(1, teacher_manage_id);
         preparedStatement.executeUpdate();
@@ -61,14 +72,14 @@ public class sqlQuery {
 
     public void updateTeacherManageProjectID(String teacher_id) throws Exception {
         String SQLQuery = "UPDATE teacher SET teacher_project_id=? WHERE teacher_id=?";
-        String currentTeacherManageProjectID = getTeacherManageProjectID(teacher_id);
         PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
+        String currentTeacherManageProjectID = getTeacherManageProjectID(teacher_id);
         if (currentTeacherManageProjectID.equals("")) {
-            currentTeacherManageProjectID = getProjectID();
+            currentTeacherManageProjectID = String.valueOf(getProjectID());
         } else {
             currentTeacherManageProjectID = currentTeacherManageProjectID + ";" + getProjectID();
         }
-        System.out.println(currentTeacherManageProjectID);
+//        System.out.println(currentTeacherManageProjectID);
         preparedStatement.setString(1, currentTeacherManageProjectID);
         preparedStatement.setString(2, teacher_id);
         preparedStatement.executeUpdate();
@@ -83,16 +94,27 @@ public class sqlQuery {
         return resultSet.getString("teacher_project_id");
     }
 
-    public String getProjectID() throws Exception {
+    public String getTeacherManageProjectIDByName(String teacher_name) throws Exception {
+        String SQLQuery = "SELECT * FROM teacher WHERE teacher_name=?";
+        PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
+        preparedStatement.setString(1, teacher_name);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        while (resultSet.next()) {
+            return resultSet.getString("teacher_project_id");
+        }
+        return null;
+    }
+
+    public int getProjectID() throws Exception {
         String SQLQuery = "SELECT * FROM project";
         PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
         ResultSet resultSet = preparedStatement.executeQuery();
         while (!resultSet.next()) {
-            System.out.println("resultSet.isFirst");
-            return "0";
+//            System.out.println("resultSet.isFirst");
+            return 0;
         }
         resultSet.last();
-        return resultSet.getString("project_id");
+        return resultSet.getInt("project_id");
 
     }
 
@@ -109,10 +131,10 @@ public class sqlQuery {
     public void constructNewProject(String Path, String project_course, String project_name, String project_teacher, String project_deadline, String class_id) throws Exception {
         String SQLQuery = "INSERT INTO project VALUES(?,?,?,?,?,?,?)";
         PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
-        String project_id = getProjectID();
-        project_id = String.valueOf(Integer.valueOf(project_id) + 1);
+        int project_id = getProjectID();
+        project_id = project_id + 1; // 新建项目ID
         String project_url = Path;
-        preparedStatement.setString(1, project_id);
+        preparedStatement.setInt(1, project_id);
         preparedStatement.setString(2, project_name);
         preparedStatement.setString(3, project_course);
         preparedStatement.setString(4, project_teacher);
@@ -131,6 +153,17 @@ public class sqlQuery {
         return resultSet.getString("teacher_name");
     }
 
+    public String getTeacherNameFromProject(int project_id) throws Exception {
+        String SQLQuery = "SELECT * FROM project WHERE project_id=?";
+        PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
+        preparedStatement.setInt(1, project_id);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        while (resultSet.next()) {
+            return resultSet.getString("project_teacher");
+        }
+        return null;
+    }
+
     public String getTeacherManageClass(String teacher_id) throws Exception {
         String SQLQuery = "SELECT * FROM teacher WHERE teacher_id=?";
         PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
@@ -145,8 +178,10 @@ public class sqlQuery {
         PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
         preparedStatement.setString(1, class_id);
         ResultSet resultSet = preparedStatement.executeQuery();
-        resultSet.next();
-        return resultSet.getString("class_name");
+        while (resultSet.next()) {
+            return resultSet.getString("class_name");
+        }
+        return null;
     }
 
     public sqlQuery() throws Exception {
@@ -158,11 +193,11 @@ public class sqlQuery {
         this.conn = DriverManager.getConnection(DB_URL, USER, PASSWD);
     }
 
-    public String updateClass(String class_name, String class_student_id) throws Exception {
+    public int updateClass(String class_name, String class_student_id) throws Exception {
         String SQLQuery = "INSERT INTO class VALUES(?,?,?)";
         PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
-        String class_id = String.valueOf(Integer.valueOf(getClassID()) + 1);
-        preparedStatement.setString(1, class_id);
+        int class_id = getClassID() + 1;
+        preparedStatement.setInt(1, class_id);
         preparedStatement.setString(2, class_name);
         preparedStatement.setString(3, class_student_id);
         preparedStatement.executeUpdate();
@@ -198,16 +233,17 @@ public class sqlQuery {
         return resultSet.getString("teacher_manage_id");
     }
 
-    public String getClassID() throws Exception {
-        String SQLQuery = "SELECT * FROM class";
+    public int getClassID() throws Exception {
+        String SQLQuery = "SELECT * FROM class ORDER BY  class_id ASC";
         PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
         ResultSet resultSet = preparedStatement.executeQuery();
-        while (!resultSet.first()) {
-            return "0";
+        while (!resultSet.next()) {
+            return 0;
         }
         resultSet.last();
-        return resultSet.getString("class_id");
+        return resultSet.getInt("class_id");
     }
+
 
     public String getClassID(String class_id) throws Exception {
         String SQLQuery = "SELECT * FROM class WHERE class_id=?";
@@ -228,6 +264,17 @@ public class sqlQuery {
             }
         }
         return true;
+    }
+
+    public void updateProject(String id, String name, String course, int class_, String deadline) throws Exception {
+        String SQLQuery = "UPDATE project SET project_name=?,project_course=?,class_id=?,project_deadline=? WHERE project_id=?";
+        PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
+        preparedStatement.setString(1, name);
+        preparedStatement.setString(2, course);
+        preparedStatement.setInt(3, class_);
+        preparedStatement.setString(4, deadline);
+        preparedStatement.setInt(5, Integer.valueOf(id));
+        preparedStatement.executeUpdate();
     }
 
     public ResultSet loginQuery(String username, String password, boolean isTeacher) throws Exception {
@@ -348,6 +395,51 @@ public class sqlQuery {
         PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
         preparedStatement.setDate(1, plus3date);
         return preparedStatement.executeQuery();
+    }
+
+    public void deleteStudentProjectOutOfRange(java.sql.Date currentDate) throws Exception {
+        String SQLQuery = "DELETE FROM student_project WHERE EXISTS(SELECT * FROM project WHERE project.project_deadline<=? AND project.project_id=student_project.project_id)";
+        PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
+        preparedStatement.setDate(1, currentDate);
+        preparedStatement.executeUpdate();
+    }
+
+    public ResultSet reachDeadline(java.sql.Date currentDate) throws Exception {
+        String SQLQuery = "SELECT * FROM project WHERE project_deadline<=?";
+        PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
+        preparedStatement.setDate(1, currentDate);
+        return preparedStatement.executeQuery();
+    }
+
+
+    public void alterTeacherManageProjectID(int project_id) throws Exception {
+        String SQLQuery = "UPDATE teacher SET teacher_project_id=? WHERE EXISTS(SELECT * FROM project WHERE project.project_teacher=teacher.teacher_name AND project.project_id=?)";
+        String teacher_name = getTeacherNameFromProject(project_id);
+        System.out.println("Teacher Name:" + teacher_name);
+        String manage_id = getTeacherManageProjectIDByName(teacher_name);
+        System.out.println("Manage_id" + manage_id);
+        System.out.println("Concat String:" + project_id + ";");
+        System.out.println("manage_id,Index:" + manage_id.indexOf(project_id + ";"));
+        manage_id = manage_id + ";";
+        // 1;2; 1;2;3; 1;
+        manage_id = manage_id.replace(project_id + ";", "");
+        if (manage_id != "" && manage_id.charAt(manage_id.length() - 1) == ';') {
+            System.out.println("Last ;");
+            manage_id = manage_id.substring(0, manage_id.length() - 2);
+        }
+        System.out.println("Alter ManageID:" + manage_id);
+
+        PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
+        preparedStatement.setString(1, manage_id);
+        preparedStatement.setInt(2, project_id);
+        preparedStatement.executeUpdate();
+    }
+
+    public void removeProject(int project_id) throws Exception {
+        String SQLQuery = "DELETE FROM project WHERE project_id=?";
+        PreparedStatement preparedStatement = this.conn.prepareStatement(SQLQuery);
+        preparedStatement.setInt(1, project_id);
+        preparedStatement.executeUpdate();
     }
 
     public ArrayList<String> all_from_student_info(String username) throws Exception {

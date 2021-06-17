@@ -40,16 +40,20 @@ public class fileUpload extends HttpServlet {
         doPost(request, response);
     }
 
-    private File fileCreate(String Path, String proj_nm, String className, String fileName) throws IOException {
-        File uploadFile = new File(Path + File.separator + proj_nm);
+    private File fileCreate(String Path, String proj_nm, String className, String fileName, String proj_id) throws IOException {
+        File uploadFile = new File(Path + File.separator + proj_id);
         if (!uploadFile.exists()) {
             uploadFile.mkdir();
         }
-        uploadFile = new File(Path + File.separator + proj_nm + File.separator + className);
+        uploadFile = new File(Path + File.separator + proj_id + File.separator + proj_nm);
         if (!uploadFile.exists()) {
             uploadFile.mkdir();
         }
-        uploadFile = new File(Path + File.separator + proj_nm + File.separator + className + File.separator + fileName);
+        uploadFile = new File(Path + File.separator + proj_id + File.separator + proj_nm + File.separator + className);
+        if (!uploadFile.exists()) {
+            uploadFile.mkdir();
+        }
+        uploadFile = new File(Path + File.separator + proj_id + File.separator + proj_nm + File.separator + className + File.separator + fileName);
         System.out.println(uploadFile.getAbsolutePath());
         if (!uploadFile.exists()) {
             uploadFile.createNewFile(); // 创建相应的上传文件
@@ -78,7 +82,7 @@ public class fileUpload extends HttpServlet {
         while (iter.hasNext()) {
             FileItem item = (FileItem) iter.next();
             if (item.isFormField()) {
-                String name = item.getFieldName(); // 获取头部域中的信息 头部域中包括token 与 proj_name
+                String name = item.getFieldName(); // 获取头部域中的信息 头部域中包括token 与 proj_name proj_id
                 String value = item.getString();
                 dict.put(name, value);
             } else {
@@ -86,6 +90,7 @@ public class fileUpload extends HttpServlet {
                 String className = jwt.getClaim("class").asString(); // 班级名称 e.g 信安191
                 String userName = jwt.getClaim("username").asString(); // 用户名称  e.g 1915300017
                 String proj_nm = (String) dict.get("proj_name"); // 项目名称 e.g 数据库查询使用
+                String proj_id = (String) dict.get("proj_id");
                 proj_nm = new String(Base64.decode(proj_nm), Charset.forName("UTF-8")); // 使用base64编码传输过来的中文数据 解决编码相互转换的问题
 
                 sqlQuery query = new sqlQuery();
@@ -94,7 +99,7 @@ public class fileUpload extends HttpServlet {
 
                 String fileName = proj_nm + "-" + userName + "-" + className + ".pdf";
                 // 逐级构建文件夹
-                File uploadFile = fileCreate(Path, proj_nm, className, fileName); // 构建目录路径
+                File uploadFile = fileCreate(Path, proj_nm, className, fileName, proj_id); // 构建目录路径
                 item.write(uploadFile); // 将远程获取的数据写入文件
                 confirmedSubmit(userName, proj_nm);
             }

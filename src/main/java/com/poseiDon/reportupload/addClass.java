@@ -29,9 +29,9 @@ import java.security.NoSuchAlgorithmException;
 @WebServlet(name = "addClass", value = "/addClass")
 public class addClass extends HttpServlet {
 
-    private void alterTeacherManageID(String teacher_id, String class_id) throws Exception {
+    private void alterTeacherManageID(String teacher_id, int class_id) throws Exception {
         sqlQuery query = new sqlQuery();
-        System.out.println(teacher_id + " " + class_id);
+//        System.out.println(teacher_id + " " + class_id);
         query.updateTeacherManageID(teacher_id, class_id);
     }
 
@@ -45,9 +45,9 @@ public class addClass extends HttpServlet {
         }
     }
 
-    private String addClass(String class_name, String class_student_id) throws Exception {
+    private int addClass(String class_name, String class_student_id) throws Exception {
         sqlQuery query = new sqlQuery();
-        class_student_id = class_student_id.substring(0, class_student_id.length() - 1);
+        class_student_id = class_student_id.substring(0, class_student_id.length() - 1); // 处理字符串格式 去除最末尾的;
         return query.updateClass(class_name, class_student_id);
     }
 
@@ -83,6 +83,7 @@ public class addClass extends HttpServlet {
         while (inputStream.read(buf) != -1) {
             data = data + new String(buf);
         }
+
         try {
             JSONObject objJson = (JSONObject) new JSONParser().parse(data);
             HashMap<String, String> dict = (HashMap<String, String>) objJson.get("newClass");
@@ -92,21 +93,23 @@ public class addClass extends HttpServlet {
                 JsonResp(resp.getWriter(), "failure");
                 return;
             }
+            // 从token中获取吉教师ID
             String token = dict.get("token");
             DecodedJWT jwt = tokenSolve.Decrypt(token);
             String teacher_id = jwt.getClaim("teacher_id").asString();
-            String class_student_id = dict.get("class_student_id");
+
+            String class_student_id = dict.get("class_student_id"); // 新建班级中将要添加的学生学号信息 e.g. 1915300017\n1915300016
             String[] class_student_id_split = class_student_id.split("\n");
             AtomicReference<String> class_student_id_list = new AtomicReference<>("");
             Arrays.stream(class_student_id_split).forEach(item -> {
                 try {
-                    addStudent(item);
+                    addStudent(item); // 若添加学生不在学生表中，添加该学生进入学生表
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                class_student_id_list.set(class_student_id_list + item + ";");
+                class_student_id_list.set(class_student_id_list + item + ";"); // 构建班级学生信息 class表中class_student_id列
             });
-            String class_id = addClass(class_name, String.valueOf(class_student_id_list));
+            int class_id = addClass(class_name, String.valueOf(class_student_id_list)); // 对class表进行操作
             alterTeacherManageID(teacher_id, class_id);
             JsonResp(resp.getWriter(), "success");
         } catch (Exception e) {
